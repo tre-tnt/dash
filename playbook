@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TNT Growth: Interactive Playbook</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Slate & Sky -->
+    <!-- Application Structure Plan: The SPA is designed as a tab-based interface, which is the most intuitive structure for this content. It allows the user to quickly switch between different outreach channels without scrolling. Each tab contains the full playbook for that channel: KPIs, a visual flowchart, and clickable buttons to reveal complete email/message templates. This structure was chosen because it organizes complex, multi-step processes into clean, manageable sections, enhancing usability and quick reference, which is critical for a sales/growth team's daily workflow. A new "Dashboard" home tab provides a high-level strategic overview. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Channel Ownership & KPIs -> Goal: Inform/Compare -> Viz/Presentation Method: KPI Dashboard with Bar Charts (Chart.js/Canvas) and summary cards on the main dashboard. -> Interaction: Hover to see target values. Click cards to navigate. -> Justification: Visual representation of targets is more engaging and easier to digest than a simple list. The main dashboard provides a command center view.
+        - Report Info: Process Flowchart -> Goal: Organize/Change -> Viz/Presentation Method: Enhanced HTML/CSS Flexbox Diagram with icons. -> Interaction: Static visual guide -> Justification: A clear, non-interactive visual flowchart built with HTML/CSS is superior to text for understanding a sequence of events. Icons add clarity.
+        - Report Info: Email/Message Templates -> Goal: Inform/Organize -> Viz/Presentation Method: Clickable Buttons with Expandable Text Blocks and a "Copy to Clipboard" feature. -> Interaction: Click to reveal/hide template content. Click to copy. -> Justification: Hiding templates by default keeps the interface clean. The copy function is a major workflow improvement.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9; /* slate-100 */
+        }
+        .tab-active {
+            border-color: #0ea5e9; /* sky-500 */
+            color: #0369a1; /* sky-700 */
+            background-color: #ffffff;
+            font-weight: 600;
+        }
+        .tab-inactive {
+            border-color: transparent;
+            color: #475569; /* slate-600 */
+        }
+        .tab-inactive:hover {
+            background-color: #f8fafc; /* slate-50 */
+            color: #1e293b; /* slate-800 */
+        }
+        .template-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.7s ease-in-out;
+        }
+        .template-content.show {
+            max-height: 1500px;
+        }
+        .flowchart-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0; /* slate-200 */
+            background-color: white;
+            min-height: 80px;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+            transition: transform 0.2s;
+        }
+        .flowchart-step:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .flowchart-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8; /* slate-400 */
+            font-size: 1.75rem;
+            font-weight: 600;
+        }
+        .kpi-card, .content-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 250px;
+            max-height: 250px;
+        }
+        .copy-btn {
+            transition: background-color 0.3s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-12">
+            <h1 class="text-5xl md:text-6xl font-extrabold text-slate-900">TNT Growth</h1>
+            <p class="text-xl text-slate-600 mt-3">The Ultimate Interactive Growth Playbook</p>
+        </header>
+
+        <main>
+            <!-- Tabs Navigation -->
+            <div class="mb-8 bg-slate-200/50 p-1 rounded-lg">
+                <nav class="flex flex-wrap -mb-px" aria-label="Tabs">
+                    <button class="tab-btn tab-active flex-1 sm:flex-none text-center text-base md:text-lg font-medium border-b-2 py-4 px-3 md:px-6 rounded-md" data-tab="dashboard">🏠 Dashboard</button>
+                    <button class="tab-btn tab-inactive flex-1 sm:flex-none text-center text-base md:text-lg font-medium border-b-2 py-4 px-3 md:px-6 rounded-md" data-tab="jordan-ross">🌟 Jordan Ross</button>
+                    <button class="tab-btn tab-inactive flex-1 sm:flex-none text-center text-base md:text-lg font-medium border-b-2 py-4 px-3 md:px-6 rounded-md" data-tab="customers">📈 Customers</button>
+                    <button class="tab-btn tab-inactive flex-1 sm:flex-none text-center text-base md:text-lg font-medium border-b-2 py-4 px-3 md:px-6 rounded-md" data-tab="network">🌐 Network</button>
+                    <button class="tab-btn tab-inactive flex-1 sm:flex-none text-center text-base md:text-lg font-medium border-b-2 py-4 px-3 md:px-6 rounded-md" data-tab="outbound">📧 Outbound</button>
+                    <button class="tab-btn tab-inactive flex-1 sm:flex-none text-center text-base md:text-lg font-medium border-b-2 py-4 px-3 md:px-6 rounded-md" data-tab="linkedin">🔗 LinkedIn</button>
+                    <button class="tab-btn tab-inactive flex-1 sm:flex-none text-center text-base md:text-lg font-medium border-b-2 py-4 px-3 md:px-6 rounded-md" data-tab="referrals">🤝 Referrals</button>
+                    <button class="tab-btn tab-inactive flex-1 sm:flex-none text-center text-base md:text-lg font-medium border-b-2 py-4 px-3 md:px-6 rounded-md" data-tab="upwork">💼 Upwork</button>
+                </nav>
+            </div>
+
+            <!-- Tab Content -->
+            <div id="tab-content">
+                <!-- Dashboard -->
+                <div id="dashboard" class="tab-pane active">
+                    <div class="content-card mb-8">
+                        <h2 class="text-3xl font-bold mb-2 text-slate-800">Growth Command Center</h2>
+                        <p class="mb-6 text-slate-600">Welcome to your central dashboard. Get a high-level overview of all growth channels and their primary objectives. Click on any card to jump directly to that channel's detailed playbook.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <div class="dashboard-card kpi-card p-6 cursor-pointer hover:shadow-xl transition-shadow" data-tab-link="jordan-ross">
+                            <h3 class="text-2xl font-bold text-slate-800 mb-2">🌟 Jordan Ross</h3>
+                            <p class="text-slate-600 mb-4">Capitalize on high-trust intros from Jordan Ross.</p>
+                            <div class="text-3xl font-bold text-sky-600">40%</div>
+                            <p class="text-slate-500">Target Close Rate</p>
+                        </div>
+                        <div class="dashboard-card kpi-card p-6 cursor-pointer hover:shadow-xl transition-shadow" data-tab-link="customers">
+                            <h3 class="text-2xl font-bold text-slate-800 mb-2">📈 Customers</h3>
+                            <p class="text-slate-600 mb-4">Expand and upsell existing happy customers.</p>
+                            <div class="text-3xl font-bold text-sky-600">15%</div>
+                            <p class="text-slate-500">Target Upsell Rate</p>
+                        </div>
+                        <div class="dashboard-card kpi-card p-6 cursor-pointer hover:shadow-xl transition-shadow" data-tab-link="network">
+                            <h3 class="text-2xl font-bold text-slate-800 mb-2">🌐 Network</h3>
+                            <p class="text-slate-600 mb-4">Convert warm intros from Adam's network.</p>
+                            <div class="text-3xl font-bold text-sky-600">45%</div>
+                            <p class="text-slate-500">Target Close Rate</p>
+                        </div>
+                        <div class="dashboard-card kpi-card p-6 cursor-pointer hover:shadow-xl transition-shadow" data-tab-link="outbound">
+                            <h3 class="text-2xl font-bold text-slate-800 mb-2">📧 Outbound</h3>
+                            <p class="text-slate-600 mb-4">Engage cold leads with personalized value.</p>
+                            <div class="text-3xl font-bold text-sky-600">1%</div>
+                            <p class="text-slate-500">Target Meeting Rate</p>
+                        </div>
+                        <div class="dashboard-card kpi-card p-6 cursor-pointer hover:shadow-xl transition-shadow" data-tab-link="linkedin">
+                            <h3 class="text-2xl font-bold text-slate-800 mb-2">🔗 LinkedIn</h3>
+                            <p class="text-slate-600 mb-4">Build relationships that turn into revenue.</p>
+                            <div class="text-3xl font-bold text-sky-600">2%</div>
+                            <p class="text-slate-500">Target Meeting Rate</p>
+                        </div>
+                        <div class="dashboard-card kpi-card p-6 cursor-pointer hover:shadow-xl transition-shadow" data-tab-link="referrals">
+                            <h3 class="text-2xl font-bold text-slate-800 mb-2">🤝 Referrals</h3>
+                            <p class="text-slate-600 mb-4">Convert the highest-trust leads from clients.</p>
+                            <div class="text-3xl font-bold text-sky-600">50%</div>
+                            <p class="text-slate-500">Target Close Rate</p>
+                        </div>
+                        <div class="dashboard-card kpi-card p-6 cursor-pointer hover:shadow-xl transition-shadow" data-tab-link="upwork">
+                            <h3 class="text-2xl font-bold text-slate-800 mb-2">💼 Upwork</h3>
+                            <p class="text-slate-600 mb-4">Win high-quality freelance projects.</p>
+                            <div class="text-3xl font-bold text-sky-600">10%</div>
+                            <p class="text-slate-500">Target Hire Rate</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Jordan Ross Intro Content -->
+                <div id="jordan-ross" class="tab-pane hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-2 content-card">
+                            <h2 class="text-3xl font-bold mb-2 text-slate-800">Jordan Ross Intro Playbook</h2>
+                            <p class="mb-6 text-slate-600">This playbook covers leads introduced directly by Jordan Ross. These are high-priority, warm leads that require prompt and professional follow-up to capitalize on the established trust.</p>
+                            <h3 class="text-2xl font-semibold mb-4 text-slate-700">Process Flowchart</h3>
+                            <div class="space-y-4 md:space-y-0 md:flex md:items-center md:space-x-4 mb-8">
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">📧</span>Day 1: Intro Email</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">🔗</span>Day 4: LinkedIn Connect</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">📊</span>Day 7: Case Study</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">👋</span>Day 12: Breakup Email</div>
+                            </div>
+                            <h3 class="text-2xl font-semibold mb-4 text-slate-700">Email & Message Templates</h3>
+                            <div class="space-y-4">
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 1: Jordan Ross Intro</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">Thanks Jordan!</p>
+                                        <div class="template-body"><p>Hey [Name], it's nice to e-meet you!<br><br>PPC is our strong suit! I'd love to learn more about your current marketing efforts and see where we could add the most value.<br><br>Let's have a quick chat to discuss high-level goals/challenges. Here is a link to my calendar: [Meet w/ TNT], or please feel free to send over yours.<br><br>Looking forward to hearing from you,<br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>LinkedIn Connect & Message</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Connection Request Note:</p>
+                                        <div class="template-body mb-4"><p>Hi [Name], Jordan Ross introduced us via email. Would love to connect here as well. - Tre</p></div>
+                                        <p class="font-bold">Follow-up Message (if needed):</p>
+                                        <div class="template-body"><p>Hi [Name], just wanted to connect here as well. Let me know if you had any thoughts on the case study I sent over. Happy to chat if you see a potential fit.</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 2: Case Study</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">How we helped [Similar Company]</p>
+                                        <div class="template-body"><p>Hi [Name],<br><br>Following up on my last note. I thought you might be interested to see how we helped [Similar Company] achieve [Specific Result, e.g., a 150% increase in qualified leads] by revamping their PPC strategy.<br><br>You can see the full story here: [Link to Case Study]<br><br>Does this align with any of the goals you have for [Company Name]?<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 3: 'Breakup' Email</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">Closing the loop</p>
+                                        <div class="template-body"><p>Hi [Name],<br><br>I know things can get busy. Since I haven't heard back, I'll assume this isn't a priority at the moment and will stop my follow-ups.<br><br>Please feel free to reach out if anything changes. Wishing you and the team at [Company Name] the best.<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-1">
+                            <div class="kpi-card">
+                                <h3 class="text-2xl font-semibold mb-4 text-slate-700">Channel KPIs</h3>
+                                <p class="text-slate-600 mb-4">Track these metrics for Jordan Ross intros. These warm leads should have high engagement.</p>
+                                <div class="chart-container">
+                                    <canvas id="jordanRossKpiChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Customers Content -->
+                <div id="customers" class="tab-pane hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-2 content-card">
+                            <h2 class="text-3xl font-bold mb-2 text-slate-800">Customers (Upsell/Expansion) Playbook</h2>
+                            <p class="mb-6 text-slate-600">This playbook is for engaging existing customers to identify upsell and expansion opportunities. The goal is to grow revenue from our current client base by proactively providing more value.</p>
+                            <h3 class="text-2xl font-semibold mb-4 text-slate-700">Process Flowchart</h3>
+                            <div class="space-y-4 md:space-y-0 md:flex md:items-center md:space-x-4 mb-8">
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">💬</span>Day 1: Success Check-in</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">💡</span>Day 4: Industry Insights</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">🏆</span>Day 8: Success Story</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">✔️</span>Day 13: Final Check-in</div>
+                            </div>
+                            <h3 class="text-2xl font-semibold mb-4 text-slate-700">Email Templates</h3>
+                             <div class="space-y-4">
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 1: Success Check-in</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">How's everything going with [Company Name]?</p>
+                                        <div class="template-body"><p>Hi [Name],<br><br>I wanted to check in and see how things are going with your current growth initiatives. We've been working together for a while now, and I'd love to understand what's working well and where we might be able to add even more value.<br><br>I've noticed some interesting opportunities for [Company Name] based on recent industry trends. Would you be open to a quick call to discuss potential expansion opportunities?<br><br>Here's my calendar: [Meet w/ TNT]<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                                 <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 2: Industry Insights</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">[Industry] trends that could help</p>
+                                        <div class="template-body"><p>Hi [Name],<br><br>Following up on my last note. I saw this report about [Industry Trend] and it made me think of your goals for this quarter.<br><br>The section on [Specific Topic] is especially relevant. It seems like there could be a real opportunity for us to explore [New Service or Strategy, e.g., programmatic display ads] to complement our current work.<br><br>Let me know if you'd like me to put together a few high-level ideas.<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 3: Success Story</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">How we helped [Similar Company]</p>
+                                        <div class="template-body"><p>Hi [Name],<br><br>Hope you're having a good week. I was just looking at the work we did for [Another Client], where we added [New Service] to their existing package. They ended up seeing a [Specific Positive Result, e.g., 25% increase in conversion rate] in the first two months.<br><br>It made me think there might be a similar opportunity for us. Would you be open to a quick 15-minute chat to explore?<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 4: Final Check-in</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">Final check-in</p>
+                                        <div class="template-body"><p>Hi [Name],<br><br>Just wanted to check in one last time on exploring some new growth opportunities. No pressure at all, just wanted to make sure you saw my previous notes.<br><br>We're always looking for ways to drive more results for you. Let me know if anything comes to mind!<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-1">
+                            <div class="kpi-card">
+                                <h3 class="text-2xl font-semibold mb-4 text-slate-700">Channel KPIs</h3>
+                                <p class="text-slate-600 mb-4">Track these metrics for customer expansion. The goal is to grow existing accounts.</p>
+                                <div class="chart-container">
+                                    <canvas id="customersKpiChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Content -->
+                <div id="network" class="tab-pane hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-2 content-card">
+                            <h2 class="text-3xl font-bold mb-2 text-slate-800">Network (Adam's Intro) Playbook</h2>
+                            <p class="mb-6 text-slate-600">This playbook is for leads introduced by Adam from his network. These are warm introductions that require a two-part follow-up, first from Adam, then from Tre, to maintain context and trust.</p>
+                            <h3 class="text-2xl font-semibold mb-4 text-slate-700">Process Flowchart</h3>
+                             <div class="space-y-4 md:space-y-0 md:flex md:items-center md:space-x-4 mb-8">
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">🤝</span>Day 1: Adam's Intro</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">➡️</span>Day 2: Tre's Follow-up</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">🎥</span>Day 6: Video/Case Study</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">👋</span>Day 11: 'Breakup' w/ CC</div>
+                            </div>
+                            <h3 class="text-2xl font-semibold mb-4 text-slate-700">Email Templates</h3>
+                            <div class="space-y-4">
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 1: Adam's Introduction</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">Introduction from Adam</p>
+                                        <div class="template-body"><p>Hi [Name],<br><br>I wanted to introduce you to Tre, who runs TNT Growth. He's helped several companies in your space achieve significant growth.<br><br>I think you two should connect to discuss potential opportunities.<br><br>Best,<br>Adam</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 2: Tre's Follow-up</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">Following up on Adam's intro</p>
+                                        <div class="template-body"><p>Hi [Name],<br><br>(Moving Adam to BCC)<br><br>Thanks for the intro, Adam! <br><br>Hi [Name], great to connect. Adam mentioned you might be interested in discussing growth opportunities for [Company Name].<br><br>Would you be open to a quick call this week? Here's my calendar: [Meet w/ TNT]<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 3: Video/Case Study</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">Quick video case study</p>
+                                        <div class="template-body"><p>Hi [Name],<br><br>Following up on my last email. For a bit more context on how we help, here's a quick video case study that breaks down our work with [Similar Company], where we [achieved specific result].<br><br>Link: [Video/Case Study Link]<br><br>Let me know if this sparks any ideas.<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 4: 'Breakup' w/ CC</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">Closing the loop - CC: Adam</p>
+                                        <div class="template-body"><p>Hi [Name],<br><br>I'm looping Adam back in to close this out. It seems like now might not be the right time to connect, which is completely fine.<br><br>We'll be here if anything changes down the road.<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-1">
+                            <div class="kpi-card">
+                                <h3 class="text-2xl font-semibold mb-4 text-slate-700">Channel KPIs</h3>
+                                <p class="text-slate-600 mb-4">Track these metrics for network intros. These are warm leads and should convert well.</p>
+                                <div class="chart-container">
+                                    <canvas id="networkKpiChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Outbound Email Content -->
+                <div id="outbound" class="tab-pane hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-2 content-card">
+                            <h2 class="text-3xl font-bold mb-2 text-slate-800">Outbound Email Playbook</h2>
+                            <p class="mb-6 text-slate-600">This section outlines the complete process for cold email outreach. The primary objective is to book a qualified discovery call by demonstrating immediate, personalized value and a deep understanding of the prospect's business needs.</p>
+                            <h3 class="text-2xl font-semibold mb-4 text-slate-700">Process Flowchart</h3>
+                            <div class="space-y-4 md:space-y-0 md:flex md:items-center md:space-x-4 mb-8">
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">🎥</span>Day 1: Personalized Video</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">📊</span>Day 4: Case Study</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">🎁</span>Day 8: Value-Add</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">👋</span>Day 12: Breakup</div>
+                            </div>
+                            <h3 class="text-2xl font-semibold mb-4 text-slate-700">Email Templates</h3>
+                            <div class="space-y-4">
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 1: Personalized Video Audit</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject Option A:</p> <p class="mb-2">Quick idea for [Company Name]'s ad strategy</p>
+                                        <p class="font-bold">Subject Option B:</p> <p class="mb-4">[Your Name] <> [Company Name]</p>
+                                        <div class="template-body"><p>Hi [First Name],<br><br>I saw that [Company Name] is running [ad platform, e.g., LinkedIn Ads] for lead generation. I recorded a quick 90-second video with one specific suggestion that could improve your ROAS on the "[Campaign Name]" campaign.<br><br>You can watch it here: [Link to Loom/Vidyard]<br><br>If you find this helpful, I have a few more ideas I'd be happy to share. Are you open to a brief chat next week?<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 2: Relevant Case Study</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">Re: Quick idea for [Company Name]'s ad strategy</p>
+                                        <div class="template-body"><p>Hi [First Name],<br><br>Following up on the video I sent. Many companies in the [Prospect's Industry] space struggle with [specific, common pain point, e.g., high lead costs on LinkedIn].<br><br>We recently helped [Similar Client Name] tackle this exact problem, ultimately [achieving specific result, e.g., decreasing their CPL by 35% in 60 days].<br><br>Here's the short case study on how we did it: [Link to Case Study]<br><br>Does this sound like a challenge you're currently facing?<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 3: Value-Add Resource</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">Re: Quick idea for [Company Name]'s ad strategy</p>
+                                        <div class="template-body"><p>Hi [First Name],<br><br>Just came across this in-depth report on [Relevant Topic, e.g., 2025 B2B SaaS Marketing Trends] and thought of you. The section on [Specific Insight] on page 8 is particularly interesting for companies like yours.<br><br>Hope it's helpful!<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 4: The Breakup</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">Closing the loop</p>
+                                        <div class="template-body"><p>Hi [First Name],<br><br>I've reached out a few times without hearing back, so I'll assume improving your paid media strategy isn't a priority right now.<br><br>I won't follow up again, but please feel free to reach out if things change in the future.<br><br>Wishing you and the team at [Company Name] all the best.<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-1">
+                            <div class="kpi-card">
+                                <h3 class="text-2xl font-semibold mb-4 text-slate-700">Channel KPIs</h3>
+                                <p class="text-slate-600 mb-4">Track these metrics to measure the effectiveness of the outbound email channel. The chart shows your target goals.</p>
+                                <div class="chart-container">
+                                    <canvas id="outboundKpiChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LinkedIn Content -->
+                <div id="linkedin" class="tab-pane hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-2 content-card">
+                            <h2 class="text-3xl font-bold mb-2 text-slate-800">LinkedIn Playbook</h2>
+                            <p class="mb-6 text-slate-600">This playbook focuses on leveraging professional connections on LinkedIn to initiate conversations and book discovery calls. The approach is more conversational and relationship-focused than direct email.</p>
+                            <h3 class="text-2xl font-semibold mb-4 text-slate-700">Process Flowchart</h3>
+                            <div class="space-y-4 md:space-y-0 md:flex md:items-center md:space-x-4 mb-8">
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">🔗</span>Day 1: Connection Request</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">🎁</span>Day 1 (Post-Accept): The "Give"</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">❓</span>Day 4: The "Ask"</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">↪️</span>Day 8: Channel Shift to Email</div>
+                            </div>
+                            <h3 class="text-2xl font-semibold mb-4 text-slate-700">Message & Email Templates</h3>
+                            <div class="space-y-4">
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Personalized Connection Request</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <div class="template-body"><p>Hi [First Name], I was impressed by your recent post on [Topic]. I'm also in the marketing growth space and would love to connect and follow your work. - Tre</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>LinkedIn Message 1: The "Give"</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <div class="template-body"><p>Great to connect, [First Name]. Thanks for accepting.<br><br>I saw your team is focused on [Company Initiative, e.g., expanding into the enterprise market]. I recently wrote a short guide on how we use paid ads to support that exact motion. No strings attached, just thought you might find it useful: [Link to blog/guide]<br><br>Cheers,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>LinkedIn Message 2: The "Ask"</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <div class="template-body"><p>Hope you found that guide helpful, [First Name].<br><br>My company, TNT Growth, specializes in helping SaaS companies like yours build scalable paid media engines to support their growth goals.<br><br>If you're open to it, I'd be happy to share 1-2 specific ideas for [Company Name] over a quick call next week. Would that be of interest?</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 1: The Channel Shift</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">Following up from LinkedIn</p>
+                                        <div class="template-body"><p>Hi [First Name],<br><br>We connected on LinkedIn recently, and I sent a message but know things can get buried there.<br><br>I was reaching out because I saw [Company Name] is running [ad platform] and I had a specific idea to [achieve a positive business outcome, e.g., improve your conversion rates].<br><br>We recently helped [Similar Client Name] achieve [Specific Result]. I'd be happy to walk you through how we did it and how a similar approach might apply to you.<br><br>Are you free for a brief chat sometime next week?<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-1">
+                            <div class="kpi-card">
+                                <h3 class="text-2xl font-semibold mb-4 text-slate-700">Channel KPIs</h3>
+                                <p class="text-slate-600 mb-4">Track these metrics to measure the effectiveness of the LinkedIn channel. The chart shows your target goals.</p>
+                                <div class="chart-container">
+                                    <canvas id="linkedinKpiChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Referrals Content -->
+                <div id="referrals" class="tab-pane hidden">
+                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-2 content-card">
+                            <h2 class="text-3xl font-bold mb-2 text-slate-800">Referrals Playbook</h2>
+                            <p class="mb-6 text-slate-600">This playbook details the process for handling warm introductions from clients, partners, or network connections. The objective is to convert these high-trust leads into new clients with a high close rate.</p>
+                            <h3 class="text-2xl font-semibold mb-4 text-slate-700">Process Flowchart</h3>
+                            <div class="space-y-4 md:space-y-0 md:flex md:items-center md:space-x-4 mb-8">
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">🤝</span>Day 1: Reference Referrer</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">🎁</span>Day 4: Value-add Follow-up</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">👋</span>Day 7: Final Attempt & Inform</div>
+                            </div>
+                            <h3 class="text-2xl font-semibold mb-4 text-slate-700">Email Templates</h3>
+                            <div class="space-y-4">
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 1: Reference the Referrer</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                         <p class="font-bold">Subject:</p> <p class="mb-4">[Referrer Name] suggested we connect</p>
+                                         <div class="template-body"><p>Hi [First Name],<br><br>(Moving [Referrer Name] to BCC to save their inbox)<br><br>It's great to e-meet you! [Referrer Name] mentioned you were looking for support with [specific challenge, e.g., optimizing your Google Ads spend].<br><br>My company, TNT Growth, specializes in exactly that. We've helped companies like [Similar Client] achieve [Specific Result].<br><br>Are you available for a brief introductory call this week to see if we can help [Company Name] as well? You can book a time directly on my calendar here: [Calendar Link]<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 2: Value-add Follow-up</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">Re: [Referrer Name] suggested we connect</p>
+                                        <div class="template-body"><p>Hi [First Name],<br><br>Just wanted to follow up on my last email.<br><br>In the meantime, I thought you might find this case study on how we helped a similar company navigate [the same challenge] useful: [Link to Case Study]<br><br>Let me know if a quick chat makes sense.<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 3: Final Attempt</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">Re: [Referrer Name] suggested we connect</p>
+                                        <div class="template-body"><p>Hi [First Name],<br><br>Circling back one last time regarding [Referrer Name]'s introduction. I know how busy things can get, so I'll assume now isn't the right time.<br><br>Please don't hesitate to reach out if you'd like to explore this in the future.<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Email 4: Inform Referrer (Sent Separately)</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <p class="font-bold">Subject:</p> <p class="mb-4">Quick update re: [Prospect's Name]</p>
+                                        <div class="template-body"><p>Hi [Referrer Name],<br><br>Hope you're having a great week.<br><br>Just wanted to close the loop and let you know I reached out to [Prospect's Name] a couple of times but haven't heard back. I'll leave the ball in their court for now.<br><br>Thanks again for making the connection!<br><br>Best,<br>Tre</p></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-1">
+                            <div class="kpi-card">
+                                <h3 class="text-2xl font-semibold mb-4 text-slate-700">Channel KPIs</h3>
+                                <p class="text-slate-600 mb-4">Track these metrics to measure the effectiveness of the Referrals channel. The chart shows your target goals.</p>
+                                <div class="chart-container">
+                                    <canvas id="referralsKpiChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upwork Content -->
+                <div id="upwork" class="tab-pane hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-2 content-card">
+                            <h2 class="text-3xl font-bold mb-2 text-slate-800">Upwork Playbook</h2>
+                            <p class="mb-6 text-slate-600">This playbook is for winning high-quality projects on Upwork. The key is submitting a proposal that stands out from the competition by demonstrating immediate understanding and expertise.</p>
+                            <h3 class="text-2xl font-semibold mb-4 text-slate-700">Process Flowchart</h3>
+                            <div class="space-y-4 md:space-y-0 md:flex md:items-center md:space-x-4 mb-8">
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">✍️</span>Day 1: Personalized Proposal</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">🧐</span>Day 3: Follow-up Message</div>
+                                <div class="flowchart-arrow transform md:rotate-0 rotate-90">→</div>
+                                <div class="flowchart-step flex-1"><span class="text-3xl mb-1">🚀</span>Day 6: Boost or Resubmit</div>
+                            </div>
+                            <h3 class="text-2xl font-semibold mb-4 text-slate-700">Proposal & Message Templates</h3>
+                            <div class="space-y-4">
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Upwork Proposal: Personalized Proposal</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <div class="template-body"><p>Hi [Client Name],<br><br>I've carefully reviewed your project requirements for [Project Name], and I'm confident we can help you [achieve specific goal from their post].<br><br>My team at TNT Growth specializes in [relevant skill #1] and [relevant skill #2]. Specifically, your challenge of [mention a specific challenge from their post] is very similar to a project we completed for [Similar Client Type], where we successfully [achieved a specific, quantifiable result].<br><br>I have a few clarifying questions about [ask a smart question about the project, e.g., your target audience for this campaign].<br><br>I'd love to discuss this further. Would you be available for a quick call to go over the details?<br><br>Best regards,<br>Emmanuel</p></div>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg">
+                                    <button class="template-toggle w-full text-left p-4 bg-sky-50 text-sky-800 font-semibold rounded-t-lg flex justify-between items-center"><span>Upwork Message 1: Follow-up</span><span class="copy-btn text-sm bg-sky-200 text-sky-800 px-2 py-1 rounded">Copy</span></button>
+                                    <div class="template-content bg-white p-4 rounded-b-lg">
+                                        <div class="template-body"><p>Hi [Client Name],<br><br>I'm writing to follow up on the proposal I submitted for your [Project Name] job post.<br><br>I'm very interested in this opportunity and confident that our team's experience with [mention a key skill again] would be a great asset to your project.<br><br>Please let me know if you have any questions for me.<br><br>Best,<br>Emmanuel</p></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-1">
+                            <div class="kpi-card">
+                                <h3 class="text-2xl font-semibold mb-4 text-slate-700">Channel KPIs</h3>
+                                <p class="text-slate-600 mb-4">Track these metrics to measure the effectiveness of the Upwork channel. The chart shows your target goals.</p>
+                                <div class="chart-container">
+                                    <canvas id="upworkKpiChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const tabs = document.querySelectorAll('.tab-btn');
+            const panes = document.querySelectorAll('.tab-pane');
+            const dashboardCards = document.querySelectorAll('.dashboard-card');
+
+            function switchTab(targetTab) {
+                tabs.forEach(t => {
+                    if (t.getAttribute('data-tab') === targetTab) {
+                        t.classList.add('tab-active');
+                        t.classList.remove('tab-inactive');
+                    } else {
+                        t.classList.remove('tab-active');
+                        t.classList.add('tab-inactive');
+                    }
+                });
+
+                panes.forEach(pane => {
+                    if (pane.id === targetTab) {
+                        pane.classList.remove('hidden');
+                    } else {
+                        pane.classList.add('hidden');
+                    }
+                });
+            }
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    switchTab(tab.getAttribute('data-tab'));
+                });
+            });
+
+            dashboardCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    switchTab(card.getAttribute('data-tab-link'));
+                });
+            });
+            
+            const toggles = document.querySelectorAll('.template-toggle');
+            toggles.forEach(toggle => {
+                toggle.addEventListener('click', () => {
+                    const content = toggle.nextElementSibling;
+                    content.classList.toggle('show');
+                });
+            });
+
+            const copyButtons = document.querySelectorAll('.copy-btn');
+            copyButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const templateWrapper = btn.closest('.border');
+                    const templateBody = templateWrapper.querySelector('.template-body');
+                    const textToCopy = templateBody.innerText;
+                    
+                    const textArea = document.createElement('textarea');
+                    textArea.value = textToCopy;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+
+                    const originalText = btn.textContent;
+                    btn.textContent = 'Copied!';
+                    btn.classList.add('bg-green-200', 'text-green-800');
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.classList.remove('bg-green-200', 'text-green-800');
+                    }, 2000);
+                });
+            });
+
+            // Chart.js implementation
+            const createKpiChart = (ctx, labels, data) => {
+                if (ctx) {
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Target KPI (%)',
+                                data: data,
+                                backgroundColor: [
+                                    'rgba(56, 189, 248, 0.6)', // sky-400
+                                    'rgba(14, 165, 233, 0.6)', // sky-500
+                                    'rgba(2, 132, 199, 0.6)',  // sky-600
+                                    'rgba(3, 105, 161, 0.6)'   // sky-700
+                                ],
+                                borderColor: [
+                                    'rgb(56, 189, 248)',
+                                    'rgb(14, 165, 233)',
+                                    'rgb(2, 132, 199)',
+                                    'rgb(3, 105, 161)'
+                                ],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            indexAxis: 'y',
+                            scales: {
+                                x: {
+                                    beginAtZero: true,
+                                    max: 100,
+                                    grid: { color: '#e2e8f0' }
+                                },
+                                 y: { grid: { display: false } }
+                            },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return ` Target: ${context.raw}%`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            };
+
+            const jordanRossCtx = document.getElementById('jordanRossKpiChart');
+            if(jordanRossCtx) createKpiChart(jordanRossCtx.getContext('2d'), ['Reply Rate', 'Meeting Rate', 'Close Rate'], [80, 60, 40]);
+            
+            const customersCtx = document.getElementById('customersKpiChart');
+            if(customersCtx) createKpiChart(customersCtx.getContext('2d'), ['Engagement Rate', 'Meeting Rate', 'Upsell Rate'], [50, 25, 15]);
+
+            const networkCtx = document.getElementById('networkKpiChart');
+            if(networkCtx) createKpiChart(networkCtx.getContext('2d'), ['Contact Rate', 'Meeting Rate', 'Close Rate'], [85, 70, 45]);
+
+            const outboundCtx = document.getElementById('outboundKpiChart');
+            if(outboundCtx) createKpiChart(outboundCtx.getContext('2d'), ['Open Rate', 'Reply Rate', 'Meetings Booked'], [40, 5, 1]);
+
+            const linkedinCtx = document.getElementById('linkedinKpiChart');
+            if(linkedinCtx) createKpiChart(linkedinCtx.getContext('2d'), ['Accept Rate', 'Reply Rate', 'Meetings Booked'], [25, 10, 2]);
+
+            const referralsCtx = document.getElementById('referralsKpiChart');
+            if(referralsCtx) createKpiChart(referralsCtx.getContext('2d'), ['Contact Rate', 'Meeting Rate', 'Close Rate'], [90, 75, 50]);
+
+            const upworkCtx = document.getElementById('upworkKpiChart');
+            if(upworkCtx) createKpiChart(upworkCtx.getContext('2d'), ['View Rate', 'Interview Rate', 'Hire Rate'], [50, 20, 10]);
+        });
+    </script>
+</body>
+</html>
