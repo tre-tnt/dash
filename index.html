@@ -3,16 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TNT Growth: Interactive Playbook</title>
+    <title>TNT Growth: Interactive Playbook & CRM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Chosen Palette: Slate & Sky -->
-    <!-- Application Structure Plan: The SPA is designed as a tab-based interface, which is the most intuitive structure for this content. It allows the user to quickly switch between different outreach channels without scrolling. Each tab contains the full playbook for that channel: KPIs, a visual flowchart, and clickable buttons to reveal complete email/message templates. This structure was chosen because it organizes complex, multi-step processes into clean, manageable sections, enhancing usability and quick reference, which is critical for a sales/growth team's daily workflow. A new "Dashboard" home tab provides a high-level strategic overview. -->
+    <!-- Application Structure Plan: The SPA is designed as a tab-based interface, now including a fully functional, persistent Lead Tracker (CRM). This structure was chosen to integrate strategic playbooks with operational lead management, creating a single source of truth for the growth team. The lead tracker uses a real-time database (Firestore) to ensure data is always synced for all users. -->
     <!-- Visualization & Content Choices: 
-        - Report Info: Channel Ownership & KPIs -> Goal: Inform/Compare -> Viz/Presentation Method: KPI Dashboard with Bar Charts (Chart.js/Canvas) and summary cards on the main dashboard. -> Interaction: Hover to see target values. Click cards to navigate. -> Justification: Visual representation of targets is more engaging and easier to digest than a simple list. The main dashboard provides a command center view.
-        - Report Info: Process Flowchart -> Goal: Organize/Change -> Viz/Presentation Method: Enhanced HTML/CSS Flexbox Diagram with icons. -> Interaction: Static visual guide -> Justification: A clear, non-interactive visual flowchart built with HTML/CSS is superior to text for understanding a sequence of events. Icons add clarity.
-        - Report Info: Email/Message Templates -> Goal: Inform/Organize -> Viz/Presentation Method: Clickable Buttons with Expandable Text Blocks and a "Copy to Clipboard" feature. -> Interaction: Click to reveal/hide template content. Click to copy. -> Justification: Hiding templates by default keeps the interface clean. The copy function is a major workflow improvement.
+        - Report Info: Lead Tracking Request -> Goal: Organize/Track -> Viz/Presentation Method: Interactive HTML table with dynamic components, plus a new analytics dashboard with cards and a donut chart. -> Interaction: Add, edit, delete leads. Change stage/owner. Track email responses via clickable, color-coded dots. -> Justification: The analytics dashboard provides at-a-glance pipeline health. The new sequence tracker is far more intuitive than checkboxes, providing granular status (Not Sent, Sent, Responded) which directly addresses user feedback for clarity and helps in analyzing email effectiveness.
+        - Report Info: Channel Playbooks -> Goal: Inform/Organize -> Viz/Presentation Method: Existing playbook structure with flowcharts and copy-able templates. -> Interaction: As before. -> Justification: This maintains the highly-praised reference portion of the tool.
     -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
@@ -86,6 +85,37 @@
         .copy-btn {
             transition: background-color 0.3s ease;
         }
+        .sequence-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid #cbd5e1; /* slate-300 */
+            position: relative;
+        }
+        .sequence-dot[data-status="not-sent"] { background-color: #ffffff; }
+        .sequence-dot[data-status="sent"] { background-color: #94a3b8; border-color: #94a3b8; } /* slate-400 */
+        .sequence-dot[data-status="responded"] { background-color: #22c55e; border-color: #22c55e; } /* green-500 */
+        .sequence-dot .tooltip {
+            visibility: hidden;
+            width: 120px;
+            background-color: #1e293b; /* slate-800 */
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 0;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .sequence-dot:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="text-slate-800">
@@ -101,6 +131,7 @@
             <div class="mb-8 bg-slate-200/50 p-1 rounded-lg">
                 <nav class="flex flex-wrap -mb-px" aria-label="Tabs">
                     <button class="tab-btn tab-active flex-1 sm:flex-none text-center text-base md:text-lg font-medium border-b-2 py-4 px-3 md:px-6 rounded-md" data-tab="dashboard">🏠 Dashboard</button>
+                    <button class="tab-btn tab-inactive flex-1 sm:flex-none text-center text-base md:text-lg font-medium border-b-2 py-4 px-3 md:px-6 rounded-md" data-tab="leads">🎯 Leads</button>
                     <button class="tab-btn tab-inactive flex-1 sm:flex-none text-center text-base md:text-lg font-medium border-b-2 py-4 px-3 md:px-6 rounded-md" data-tab="jordan-ross">🌟 Jordan Ross</button>
                     <button class="tab-btn tab-inactive flex-1 sm:flex-none text-center text-base md:text-lg font-medium border-b-2 py-4 px-3 md:px-6 rounded-md" data-tab="customers">📈 Customers</button>
                     <button class="tab-btn tab-inactive flex-1 sm:flex-none text-center text-base md:text-lg font-medium border-b-2 py-4 px-3 md:px-6 rounded-md" data-tab="network">🌐 Network</button>
@@ -161,6 +192,61 @@
                             <p class="text-slate-600 mb-4">Win high-quality freelance projects.</p>
                             <div class="text-3xl font-bold text-sky-600">10%</div>
                             <p class="text-slate-500">Target Hire Rate</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leads Tracker -->
+                <div id="leads" class="tab-pane hidden">
+                    <div class="content-card">
+                        <div class="flex flex-wrap justify-between items-center mb-6">
+                            <div>
+                                <h2 class="text-3xl font-bold text-slate-800">Lead Tracker & Pipeline</h2>
+                                <p class="text-slate-600 mt-1">Manage your sales pipeline in real-time.</p>
+                            </div>
+                            <button id="add-lead-btn" class="bg-sky-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-700 transition-colors mt-4 sm:mt-0">
+                                + Add New Lead
+                            </button>
+                        </div>
+
+                        <!-- Leads Analytics Dashboard -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                            <div class="kpi-card p-6">
+                                <h4 class="text-slate-500 font-medium">Total Leads</h4>
+                                <p id="total-leads" class="text-4xl font-bold text-slate-800">0</p>
+                            </div>
+                            <div class="kpi-card p-6">
+                                <h4 class="text-slate-500 font-medium">Conversion Rate</h4>
+                                <p id="conversion-rate" class="text-4xl font-bold text-slate-800">0%</p>
+                            </div>
+                            <div class="lg:col-span-2 kpi-card p-6">
+                                <h4 class="text-slate-500 font-medium mb-2">Leads by Stage</h4>
+                                <div class="h-24">
+                                    <canvas id="leadsByStageChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left text-slate-500">
+                                <thead class="text-xs text-slate-700 uppercase bg-slate-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3">Lead Name</th>
+                                        <th scope="col" class="px-6 py-3">Owner</th>
+                                        <th scope="col" class="px-6 py-3">Stage</th>
+                                        <th scope="col" class="px-6 py-3">
+                                            <div class="flex items-center">Sequence
+                                                <span class="ml-2 text-xs font-normal normal-case text-slate-400">(⚫ Sent | 🟢 Responded)</span>
+                                            </div>
+                                        </th>
+                                        <th scope="col" class="px-6 py-3">Notes</th>
+                                        <th scope="col" class="px-6 py-3">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leads-table-body">
+                                    <!-- Leads will be dynamically inserted here -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -567,9 +653,267 @@
             </div>
         </main>
     </div>
+    
+    <!-- Add Lead Modal -->
+    <div id="add-lead-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Add New Lead</h3>
+                <div class="mt-4 px-7 py-3 space-y-4 text-left">
+                    <div>
+                        <label for="new-lead-name" class="text-sm font-medium text-gray-700">Lead Name</label>
+                        <input id="new-lead-name" type="text" placeholder="e.g., Jane Doe @ Acme Inc." class="mt-1 px-3 py-2 border border-gray-300 rounded-md w-full">
+                    </div>
+                     <div>
+                        <label for="new-lead-owner" class="text-sm font-medium text-gray-700">Owner</label>
+                        <select id="new-lead-owner" class="mt-1 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5"></select>
+                    </div>
+                    <div>
+                        <label for="new-lead-stage" class="text-sm font-medium text-gray-700">Stage</label>
+                        <select id="new-lead-stage" class="mt-1 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5"></select>
+                    </div>
+                    <div>
+                        <label for="new-lead-notes" class="text-sm font-medium text-gray-700">Notes</label>
+                        <textarea id="new-lead-notes" placeholder="Initial notes..." rows="3" class="mt-1 px-3 py-2 border border-gray-300 rounded-md w-full"></textarea>
+                    </div>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="save-lead-btn" class="px-4 py-2 bg-sky-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        Save Lead
+                    </button>
+                    <button id="close-modal-btn" class="mt-2 px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, addDoc, onSnapshot, updateDoc, deleteDoc, setLogLevel, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let db;
+        let auth;
+        let userId;
+        let leadsByStageChart;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'tnt-growth-playbook';
+        const leadsCollectionName = 'leads';
+        
+        const stageOptions = [
+            'Not Contacted', 'Contacted', 'Meeting Scheduled', 'No Show', 
+            'Discovery Call', 'Pitch Call', 'Closed Won', 'Closed Lost', 'Bad Fit'
+        ];
+        const ownerOptions = ['Tre', 'Adam', 'Emmanuel'];
+        const sequenceStates = ['not-sent', 'sent', 'responded'];
+
+        async function initializeFirebase() {
+            try {
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+                if (!firebaseConfig.apiKey) {
+                    console.error("Firebase config is missing.");
+                    return;
+                }
+                setLogLevel('debug');
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                userId = auth.currentUser?.uid;
+                if (!userId) {
+                    console.error("Authentication failed.");
+                    return;
+                }
+
+                const leadsCollectionRef = collection(db, "artifacts", appId, "public", "data", leadsCollectionName);
+                onSnapshot(leadsCollectionRef, (snapshot) => {
+                    const leads = [];
+                    snapshot.forEach(doc => {
+                        leads.push({ id: doc.id, ...doc.data() });
+                    });
+                    renderLeads(leads);
+                    updateAnalytics(leads);
+                });
+
+            } catch (error) {
+                console.error("Firebase initialization error:", error);
+            }
+        }
+        
+        function updateAnalytics(leads) {
+            const totalLeads = leads.length;
+            const closedWon = leads.filter(l => l.stage === 'Closed Won').length;
+            const conversionRate = totalLeads > 0 ? ((closedWon / totalLeads) * 100).toFixed(1) : 0;
+
+            document.getElementById('total-leads').textContent = totalLeads;
+            document.getElementById('conversion-rate').textContent = `${conversionRate}%`;
+            
+            const stageCounts = stageOptions.map(stage => leads.filter(l => l.stage === stage).length);
+            
+            const chartCtx = document.getElementById('leadsByStageChart')?.getContext('2d');
+            if (!chartCtx) return;
+
+            if (leadsByStageChart) {
+                leadsByStageChart.data.datasets[0].data = stageCounts;
+                leadsByStageChart.update();
+            } else {
+                leadsByStageChart = new Chart(chartCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: stageOptions,
+                        datasets: [{
+                            label: 'Leads',
+                            data: stageCounts,
+                            backgroundColor: '#38bdf8'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        scales: { x: { display: false }, y: { display: false } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+        }
+
+        function renderLeads(leads) {
+            const tableBody = document.getElementById('leads-table-body');
+            if (!tableBody) return;
+            tableBody.innerHTML = '';
+            leads.forEach(lead => {
+                const row = document.createElement('tr');
+                row.className = 'bg-white border-b';
+                row.innerHTML = `
+                    <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${lead.name}</td>
+                    <td class="px-6 py-4">
+                        <select class="owner-select bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" data-id="${lead.id}">
+                            ${ownerOptions.map(o => `<option value="${o}" ${lead.owner === o ? 'selected' : ''}>${o}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td class="px-6 py-4">
+                        <select class="stage-select bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" data-id="${lead.id}">
+                             ${stageOptions.map(s => `<option value="${s}" ${lead.stage === s ? 'selected' : ''}>${s}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center space-x-2">
+                            ${[1, 2, 3, 4].map(i => `
+                                <div class="sequence-dot" data-id="${lead.id}" data-email="${i}" data-status="${lead.sequence?.[i] || 'not-sent'}">
+                                    <span class="tooltip">Email ${i}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <textarea class="notes-input bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" data-id="${lead.id}" rows="1">${lead.notes || ''}</textarea>
+                    </td>
+                    <td class="px-6 py-4">
+                        <button class="delete-lead-btn text-red-600 hover:text-red-900" data-id="${lead.id}">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        document.getElementById('leads-table-body')?.addEventListener('click', async (e) => {
+            const target = e.target;
+            const id = target.dataset.id;
+            if (!id || !db) return;
+
+            if (target.classList.contains('sequence-dot')) {
+                const emailNum = target.dataset.email;
+                const currentStatus = target.dataset.status;
+                const nextStatusIndex = (sequenceStates.indexOf(currentStatus) + 1) % sequenceStates.length;
+                const nextStatus = sequenceStates[nextStatusIndex];
+                
+                const leadRef = doc(db, "artifacts", appId, "public", "data", leadsCollectionName, id);
+                await updateDoc(leadRef, { [`sequence.${emailNum}`]: nextStatus });
+            } else if (e.target.classList.contains('delete-lead-btn')) {
+                if (confirm('Are you sure you want to delete this lead?')) {
+                    const leadRef = doc(db, "artifacts", appId, "public", "data", leadsCollectionName, id);
+                    await deleteDoc(leadRef);
+                }
+            }
+        });
+
+        document.getElementById('leads-table-body')?.addEventListener('change', async (e) => {
+            const target = e.target;
+            const id = target.dataset.id;
+            if (!id || !db) return;
+            const leadRef = doc(db, "artifacts", appId, "public", "data", leadsCollectionName, id);
+
+            if (target.classList.contains('owner-select')) {
+                await updateDoc(leadRef, { owner: target.value });
+            }
+            if (target.classList.contains('stage-select')) {
+                await updateDoc(leadRef, { stage: target.value });
+            }
+        });
+        
+        document.getElementById('leads-table-body')?.addEventListener('focusout', async (e) => {
+            if (e.target.classList.contains('notes-input')) {
+                const id = e.target.dataset.id;
+                if (!id || !db) return;
+                const leadRef = doc(db, "artifacts", appId, "public", "data", leadsCollectionName, id);
+                await updateDoc(leadRef, { notes: e.target.value });
+                e.target.rows = 1;
+            }
+        });
+        
+        document.getElementById('leads-table-body')?.addEventListener('focusin', (e) => {
+            if (e.target.classList.contains('notes-input')) {
+                e.target.rows = 3;
+            }
+        });
+
+
+        const addLeadBtn = document.getElementById('add-lead-btn');
+        const modal = document.getElementById('add-lead-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const saveLeadBtn = document.getElementById('save-lead-btn');
+
+        addLeadBtn?.addEventListener('click', () => {
+            document.getElementById('new-lead-owner').innerHTML = ownerOptions.map(o => `<option value="${o}">${o}</option>`).join('');
+            document.getElementById('new-lead-stage').innerHTML = stageOptions.map(s => `<option value="${s}">${s}</option>`).join('');
+            modal.classList.remove('hidden');
+        });
+        closeModalBtn?.addEventListener('click', () => modal.classList.add('hidden'));
+
+        saveLeadBtn?.addEventListener('click', async () => {
+            const name = document.getElementById('new-lead-name').value;
+            const notes = document.getElementById('new-lead-notes').value;
+            const owner = document.getElementById('new-lead-owner').value;
+            const stage = document.getElementById('new-lead-stage').value;
+
+            if (name && db) {
+                const leadsCollectionRef = collection(db, "artifacts", appId, "public", "data", leadsCollectionName);
+                await addDoc(leadsCollectionRef, {
+                    name,
+                    notes,
+                    owner,
+                    stage,
+                    sequence: {},
+                    createdAt: new Date()
+                });
+                document.getElementById('new-lead-name').value = '';
+                document.getElementById('new-lead-notes').value = '';
+                modal.classList.add('hidden');
+            }
+        });
+
+
         document.addEventListener('DOMContentLoaded', function () {
+            initializeFirebase();
             const tabs = document.querySelectorAll('.tab-btn');
             const panes = document.querySelectorAll('.tab-pane');
             const dashboardCards = document.querySelectorAll('.dashboard-card');
